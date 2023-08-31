@@ -2,6 +2,7 @@
 using Meadow;
 using Meadow.Devices;
 using Meadow.Foundation;
+using Meadow.Foundation.Displays;
 using Meadow.Foundation.Graphics;
 using Meadow.Foundation.Leds;
 using Meadow.Hardware;
@@ -9,40 +10,53 @@ using Meadow.Peripherals.Leds;
 using MeadowCommonLib.Data;
 using MeadowCommonLib.Devices;
 using System;
+using System.Net.Http.Headers;
 using System.Threading;
 using System.Threading.Tasks;
 
 namespace OneConsoleDemo
 {
-    // Change F7FeatherV2 to F7FeatherV1 for V1.x boards
-    public class MeadowApp : App<F7FeatherV2>
+    public class MeadowApp : App<F7CoreComputeV2>
     {
-        RgbPwmLed onboardLed;
-        IPin chipSelectPin;
-        IPin dcPin;
-        IPin resetPin;
+        public IProjectLabHardware projLab { get; private set; }
+
+        //RgbPwmLed onboardLed;
+        //IPin chipSelectPin;
+        //IPin dcPin;
+        //IPin resetPin;
         RotationType rotationType;
 
-        MicroGraphics graphics;        
-
+        MicroGraphics graphics;
+        private ILI9341Graphics ili9341Graphics;
 
         public override Task Initialize()
         {
             Resolver.Log.Info("Initialize...");
 
-            onboardLed = new RgbPwmLed(
-                redPwmPin: Device.Pins.OnboardLedRed,
-                greenPwmPin: Device.Pins.OnboardLedGreen,
-                bluePwmPin: Device.Pins.OnboardLedBlue,
-                CommonType.CommonAnode);
+            projLab = ProjectLab.Create();
 
-            onboardLed.SetColor(Color.Red);
+            //onboardLed = new RgbPwmLed(
+            //    redPwmPin: Device.Pins.OnboardLedRed,
+            //    greenPwmPin: Device.Pins.OnboardLedGreen,
+            //    bluePwmPin: Device.Pins.OnboardLedBlue,
+            //    CommonType.CommonAnode);
+            //onboardLed.SetColor(Color.Red);
+
+            projLab.RgbLed?.SetColor(Color.Red);
+
+            if (projLab.Display is { } display)
+            {
+                Resolver.Log.Trace("Creating DisplayController");
+                rotationType = RotationType._270Degrees;
+                ili9341Graphics = new ILI9341Graphics(display,new Font8x12(), ColorMode.Format16bppRgb565, rotationType);
+                Resolver.Log.Trace("DisplayController up");
+            }
 
             // -- Settings for Project Lab Board V1 --
-            chipSelectPin = Device.Pins.A03;
-            dcPin = Device.Pins.A04;
-            resetPin = Device.Pins.A05;
-            rotationType = RotationType._270Degrees;
+            //chipSelectPin = Device.Pins.A03;
+            //dcPin = Device.Pins.A04;
+            //resetPin = Device.Pins.A05;
+            //rotationType = RotationType._270Degrees;
 
             // -- Settings for stanalone Board using digital pins --
             // -- NB: Change pins according to the ones your are using on your breadboard --
@@ -51,8 +65,8 @@ namespace OneConsoleDemo
             //resetPin = Device.Pins.D00;
             //rotationType = RotationType._270Degrees;
 
-            var st7789Graphices = new St7789Graphics(MeadowApp.Device.CreateSpiBus(), chipSelectPin, dcPin, resetPin, new Font8x12(), ColorMode.Format16bppRgb565, rotationType);
-            graphics = st7789Graphices.Graphics;
+            //var st7789Graphices = new St7789Graphics(MeadowApp.Device.CreateSpiBus(), chipSelectPin, dcPin, resetPin, new Font8x12(), ColorMode.Format16bppRgb565, rotationType);
+            graphics = ili9341Graphics.Graphics;
 
             return base.Initialize();
         }
@@ -61,7 +75,7 @@ namespace OneConsoleDemo
         {
             Resolver.Log.Info("Run...");
 
-            await onboardLed.StartPulse(Color.Green, TimeSpan.FromMilliseconds(3000));
+            await projLab.RgbLed?.StartPulse(Color.Green, TimeSpan.FromMilliseconds(3000));
 
             await TwoConsoles();            
         }
